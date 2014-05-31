@@ -1,5 +1,10 @@
 package greeso
 
+/*
+ #include "matrix.h"
+*/
+import "C"
+
 import (
 	"errors"
 	"fmt"

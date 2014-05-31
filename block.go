@@ -1,7 +1,14 @@
 package greeso
 
+/*
+ #cgo CFLAGS: -O3
+ #include "block.h"
+*/
+import "C"
+
 import (
 	"math"
+	"unsafe"
 )
 
 type block []byte
@@ -10,6 +17,45 @@ type blockCodec struct {
 	n int
 	k int
 	matrixCodec
+}
+
+type cBlockCodec struct {
+	*cCodec
+}
+
+func NewCBlockCodec(n, k int) *cBlockCodec {
+	return &cBlockCodec{NewCCodec(n, k)}
+}
+
+func (c *cBlockCodec) Encode(block []byte) []byte {
+	stripeLen := int(math.Ceil(float64(len(block)) / float64(c.codec.encode.n)))
+	encodedLen := stripeLen * int(c.codec.encode.m)
+	if cap(block) < encodedLen {
+		tempBlock := make([]byte, len(block), encodedLen)
+		copy(tempBlock, block)
+		block = tempBlock
+	}
+	block = block[0:encodedLen]
+	C.block_encode(c.codec,
+		(*C.uint8_t)(unsafe.Pointer(&block[0])),
+		C.int(stripeLen*int(c.codec.encode.n)))
+	return block
+}
+
+func (c *cBlockCodec) Decode(block []byte, chunks []byte) []byte {
+	stripeLen := int(math.Ceil(float64(len(block)) / float64(c.codec.decode.m)))
+	decodedLen := stripeLen * int(c.codec.decode.n)
+	if cap(block) < decodedLen {
+		tempBlock := make([]byte, len(block), decodedLen)
+		copy(tempBlock, block)
+		block = tempBlock
+	}
+	block = block[0:decodedLen]
+	C.block_decode(c.codec,
+		(*C.uint8_t)(unsafe.Pointer(&block[0])),
+		C.int(stripeLen*int(c.codec.decode.n)),
+		(*C.uint8_t)(unsafe.Pointer(&chunks[0])))
+	return block
 }
 
 func NewBlockCodec(n, k int) *blockCodec {
@@ -41,7 +87,7 @@ func (c *blockCodec) Encode(block []byte) []byte {
 	return block
 }
 
-func (c *blockCodec) Decode(block []byte, chunks []int) []byte {
+func (c *blockCodec) Decode(block []byte, chunks []byte) []byte {
 	code := make([]byte, c.k)
 	message := make([]byte, c.k)
 	stripeLen := int(math.Ceil(float64(len(block)) / float64(c.k)))
