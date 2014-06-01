@@ -41,7 +41,7 @@ var expTable = [512*2 + 1]byte{
 	1, 0,
 }
 
-var logTable = [256]int{
+var logTable = [256]uint{
 	512, 255, 25, 1, 50, 2, 26, 198, 75, 199, 27, 104,
 	51, 238, 223, 3, 100, 4, 224, 14, 52, 141, 129, 239, 76, 113, 8,
 	200, 248, 105, 28, 193, 125, 194, 29, 181, 249, 185, 39, 106, 77,
@@ -74,18 +74,18 @@ func mul(lhs, rhs byte) byte {
 	return expTable[(logTable[lhs] + logTable[rhs])]
 }
 
-func log(v byte) int {
+func log(v byte) uint {
 	return logTable[v]
 }
 
-func log_mul(lhs int, rhs byte) byte {
+func aLog(v uint) byte {
+	return expTable[v]
+}
+
+func logMul(lhs uint, rhs byte) byte {
 	return expTable[(lhs + logTable[rhs])]
 }
 
 func div(dividend, divisor byte) byte {
 	return expTable[(logTable[dividend] + 255 - logTable[divisor])]
-}
-
-func pow(base byte, exp int) byte {
-	return expTable[byte(logTable[base]*exp)]
 }

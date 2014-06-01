@@ -13,7 +13,8 @@ import (
 
 type (
 	vector []byte
-	matrix []vector
+	row    []uint
+	matrix []row
 )
 
 var (
@@ -23,9 +24,9 @@ var (
 
 // NewMatrix initializes a zero matrix of m rows and n columns.
 func NewMatrix(m, n int) matrix {
-	A := make([]vector, m)
+	A := make([]row, m)
 	for i := range A {
-		A[i] = make([]byte, n)
+		A[i] = make([]uint, n)
 	}
 	return A
 }
@@ -44,7 +45,7 @@ func Identity(m, n int) matrix {
 	I := NewMatrix(m, n)
 	for diag := range I {
 		if diag < len(I[diag]) {
-			I[diag][diag] = byte(1)
+			I[diag][diag] = uint(1)
 		}
 	}
 	return I
@@ -59,7 +60,7 @@ func (A matrix) Mul(V vector, C vector) error {
 	}
 	for i := range A {
 		for j, a := range A[i] {
-			C[i] ^= mul(a, V[j])
+			C[i] ^= mul(byte(a), V[j])
 		}
 	}
 	return nil
@@ -82,13 +83,13 @@ func (A matrix) PartialLowerGaussElim(row, col int, inverse matrix) (int, int) {
 		if 0 == A[row][col] {
 			return row, col
 		}
-		divisor := div(byte(1), A[row][col])
+		divisor := div(byte(1), byte(A[row][col]))
 		for k := row + 1; k < len(A); k++ {
 			nextTerm := A[k][col]
 			if nextTerm == 0 {
 				continue
 			}
-			multiple := mul(divisor, sub(byte(0), nextTerm))
+			multiple := mul(divisor, sub(byte(0), byte(nextTerm)))
 			A.rowMulAdd(multiple, row, k)
 			if inverse != nil {
 				inverse.rowMulAdd(multiple, row, k)
@@ -129,10 +130,10 @@ func (A matrix) UpperInverse(inverse matrix) (matrix, error) {
 		lastCol = len(A[0])
 	}
 	for col := 0; col < lastCol; col++ {
-		if byte(0) == A[col][col] {
+		if byte(0) == byte(A[col][col]) {
 			return nil, ErrNonInvert
 		}
-		divisor := div(byte(1), A[col][col])
+		divisor := div(byte(1), byte(A[col][col]))
 		if divisor != byte(1) {
 			A.rowMul(col, divisor, 0)
 			if inverse != nil {
@@ -140,7 +141,7 @@ func (A matrix) UpperInverse(inverse matrix) (matrix, error) {
 			}
 		}
 		for elim := 0; elim < col; elim++ {
-			multiple := sub(byte(0), A[elim][col])
+			multiple := sub(byte(0), byte(A[elim][col]))
 			A.rowMulAdd(multiple, col, elim)
 			if inverse != nil {
 				inverse.rowMulAdd(multiple, col, elim)
@@ -152,9 +153,9 @@ func (A matrix) UpperInverse(inverse matrix) (matrix, error) {
 
 func (A matrix) Transpose() matrix {
 	old := A
-	A = make([]vector, len(old[0]))
+	A = make([]row, len(old[0]))
 	for row := range A {
-		A[row] = make([]byte, len(old))
+		A[row] = make([]uint, len(old))
 	}
 	for r := range A {
 		for c := range old {
@@ -162,6 +163,49 @@ func (A matrix) Transpose() matrix {
 		}
 	}
 	return A
+}
+
+func (A matrix) Logify() matrix {
+	old := A
+	A = make([]row, len(old))
+	for row := range A {
+		A[row] = make([]uint, len(old[row]))
+	}
+	for i, row := range old {
+		for j, v := range row {
+			A[i][j] = log(byte(v))
+		}
+	}
+	return A
+}
+
+func (A matrix) AntiLogify() matrix {
+	old := A
+	A = make([]row, len(old))
+	for row := range A {
+		A[row] = make([]uint, len(old[row]))
+	}
+	for i, row := range old {
+		for j, v := range row {
+			A[i][j] = uint(aLog(v))
+		}
+	}
+	return A
+}
+
+func (A matrix) LogMul(V vector, C vector) error {
+	if len(A[0]) != len(V) {
+		return ErrDimensionMismatch
+	}
+	for i := range C {
+		C[i] = 0
+	}
+	for i := range A {
+		for j, a := range A[i] {
+			C[i] ^= logMul(a, V[j])
+		}
+	}
+	return nil
 }
 
 func (A matrix) String() string {
@@ -191,25 +235,25 @@ func (A matrix) GoString() string {
 
 func (A matrix) rowMul(row int, multiplier byte, start int) {
 	for i := range A[row] {
-		A[row][i] = mul(A[row][i], multiplier)
+		A[row][i] = uint(mul(byte(A[row][i]), multiplier))
 	}
 }
 
 func (A matrix) rowAdd(i, j int) {
 	for k := range A[j] {
-		A[j][k] = add(A[j][k], A[i][k])
+		A[j][k] = uint(add(byte(A[j][k]), byte(A[i][k])))
 	}
 }
 
 func (A matrix) rowMulAdd(multiplier byte, i, j int) {
 	for k := range A[j] {
-		A[j][k] = add(A[j][k], mul(multiplier, A[i][k]))
+		A[j][k] = uint(add(byte(A[j][k]), mul(multiplier, byte(A[i][k]))))
 	}
 }
 
 func (A matrix) findRowLeader(row, col int) int {
 	for r := row; r < len(A); r++ {
-		if byte(0) != A[r][col] {
+		if uint(0) != A[r][col] {
 			return r
 		}
 	}

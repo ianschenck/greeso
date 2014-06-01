@@ -1,6 +1,8 @@
 package greeso
 
 import (
+	"os"
+	"runtime/pprof"
 	"testing"
 )
 
@@ -21,7 +23,7 @@ func TestEncodeBlock(t *testing.T) {
 }
 
 func BenchmarkCEncodeBlock(b *testing.B) {
-	m := make([]byte, 16000000, 32000000)
+	m := make([]byte, 16000, 32000)
 	chunker := NewCBlockCodec(8, 5)
 	for i := 0; i < b.N; i++ {
 		chunker.Encode(m)
@@ -29,9 +31,13 @@ func BenchmarkCEncodeBlock(b *testing.B) {
 }
 
 func BenchmarkEncodeBlock(b *testing.B) {
-	m := make([]byte, 16000000, 32000000)
+	m := make([]byte, 16000, 32000)
 	chunker := NewBlockCodec(8, 5)
+	f, _ := os.Create("encodeblock.prof")
+	b.ResetTimer()
+	pprof.StartCPUProfile(f)
 	for i := 0; i < b.N; i++ {
 		chunker.Encode(m)
 	}
+	pprof.StopCPUProfile()
 }

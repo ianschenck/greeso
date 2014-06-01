@@ -30,6 +30,7 @@ extern codec_t* codec_new(int n, int k) {
   matrix_lower_gauss(new->encode, NULL);
   matrix_upper_inverse(new->encode, NULL);
   matrix_transpose(new->encode);
+  matrix_log(new->encode);
 
   return new;
 }
@@ -46,14 +47,16 @@ extern void codec_encode(codec_t *c, uint8_t *message, uint8_t *code) {
   vector_t c_v = {c->encode->m};
   m_v.d = message;
   c_v.d = code;
-  matrix_mul(c->encode, &m_v, &c_v);
+  matrix_log_mul(c->encode, &m_v, &c_v);
 }
 
 extern void codec_prepare_decoder(codec_t *c, uint8_t* chunks) {
   for (int i=0; i < c->decode->n; ++i) {
 	 matrix_copy_row(c->decode, i, c->encode, chunks[i]);
   }
+  matrix_alog(c->decode);
   matrix_inverse(c->decode);
+  matrix_log(c->decode);
 }
 
 extern void codec_decode(codec_t *c, uint8_t *message, uint8_t *code) {
@@ -61,5 +64,5 @@ extern void codec_decode(codec_t *c, uint8_t *message, uint8_t *code) {
   vector_t c_v = {c->decode->n};
   m_v.d = message;
   c_v.d = code;
-  matrix_mul(c->decode, &c_v, &m_v);
+  matrix_log_mul(c->decode, &c_v, &m_v);
 }

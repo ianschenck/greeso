@@ -7,20 +7,20 @@
 #include "matrix.h"
 
 // Internal forward declarations.
-uint8_t* at(matrix_t *m, int row, int column);
-void matrix_row_mul(matrix_t *m, int row, uint8_t multiple);
+unsigned int* at(matrix_t *m, int row, int column);
+void matrix_row_mul(matrix_t *m, int row, unsigned int multiple);
 void matrix_row_add(matrix_t *m, int i, int j);
-void matrix_row_muladd(matrix_t *m, uint8_t multiple, int i, int j);
+void matrix_row_muladd(matrix_t *m, unsigned int multiple, int i, int j);
 int matrix_row_leader(matrix_t *m, int row, int col);
 point_t matrix_part_lower_gauss(matrix_t *m, point_t p, matrix_t *inverse);
 
-extern uint8_t* at(matrix_t *m, int i, int j) {
+extern inline unsigned int* at(matrix_t *m, int i, int j) {
   return &m->d[m->n * i + j];
 }
 
 extern matrix_t* matrix_new(int m, int n) {
   matrix_t *matrix;
-  matrix = calloc(sizeof *matrix + m * n, 1);
+  matrix = calloc(sizeof *matrix + m * n * sizeof(unsigned int), 1);
   matrix->m = m;
   matrix->n = n;
   return matrix;
@@ -32,24 +32,25 @@ extern void matrix_free(matrix_t *matrix) {
 }
 
 extern void matrix_copy(matrix_t *dst, matrix_t *src) {
-  size_t m_size = sizeof *src + src->m*src->n;
+  size_t m_size = sizeof *src + src->m * src->n * sizeof(unsigned int);
   memcpy(dst, src, m_size);
 }
 
 extern matrix_t* matrix_duplicate(matrix_t *matrix) {
-  size_t m_size = sizeof *matrix + matrix->m*matrix->n;
+  size_t m_size = sizeof *matrix + matrix->m * matrix->n * sizeof(unsigned int);
   matrix_t *new = malloc(m_size);
   memcpy(new, matrix, m_size);
   return new;
 }
 
 extern void matrix_copy_row(matrix_t *dst, int d_row, matrix_t *src, int s_row) {
-  size_t row_size = sizeof(uint8_t) * src->n;
-  memcpy(dst->d + d_row * row_size, src->d + s_row * row_size, row_size);
+  for (int j=0; j < src->n; ++j) {
+	 *at(dst, d_row, j) = *at(src, s_row, j);
+  }
 }
 
 extern void matrix_zero(matrix_t *matrix) {
-  memset(matrix->d, 0, matrix->m * matrix->n * sizeof(uint8_t));
+  memset(matrix->d, 0, matrix->m * matrix->n * sizeof(unsigned int));
 }
 
 extern void matrix_identity(matrix_t *m) {
@@ -66,7 +67,37 @@ extern int matrix_mul(matrix_t *m, vector_t *v, vector_t *c) {
   for (int i=0; i < m->m; ++i) {
 		c->d[i] = 0;
 	 for (int j=0; j < m->n; ++j) {
-		c->d[i] = c->d[i] ^ gf_mul(*at(m, i, j), v->d[j]);
+		c->d[i] ^= gf_mul(*at(m, i, j), v->d[j]);
+	 }
+  }
+  return -1;
+}
+
+extern void matrix_log(matrix_t *m) {
+  for (int i=0; i < m->m; ++i) {
+	 for (int j=0; j < m->n; ++j) {
+		matrix_set(m, i, j, gf_log(matrix_get(m, i, j)));
+	 }
+  }  
+}
+
+extern void matrix_alog(matrix_t *m) {
+  for (int i=0; i < m->m; ++i) {
+	 for (int j=0; j < m->n; ++j) {
+		matrix_set(m, i, j, gf_alog(matrix_get(m, i, j)));
+	 }
+  }
+}
+
+extern int matrix_log_mul(matrix_t *m, vector_t *v, vector_t *c) {
+  if (m->n != v->n) {
+	 return 0;
+  }
+  
+  for (int i=0; i < m->m; ++i) {
+	 c->d[i] = 0;
+	 for (int j=0; j < m->n; ++j) {
+		c->d[i] ^= gf_log_mul(*at(m, i, j), v->d[j]);
 	 }
   }
   return -1;
@@ -174,7 +205,7 @@ point_t matrix_part_lower_gauss(matrix_t *m, point_t p, matrix_t *inverse) {
   return p;
 }
 
-void matrix_row_mul(matrix_t *m, int row, uint8_t multiple) {
+void matrix_row_mul(matrix_t *m, int row, unsigned int multiple) {
   for (int j=0; j < m->n; ++j) {
 	 *at(m, row, j) = gf_mul(*at(m, row, j), multiple);
   }
@@ -186,7 +217,7 @@ void matrix_row_add(matrix_t *m, int i, int j) {
   }
 }
 
-void matrix_row_muladd(matrix_t *m, uint8_t multiple, int i, int j) {
+void matrix_row_muladd(matrix_t *m, unsigned int multiple, int i, int j) {
   for (int k=0; k < m->n; ++k) {
 	 *at(m, j, k) = gf_add(*at(m, j, k), gf_mul(multiple, *at(m, i, k)));
   }

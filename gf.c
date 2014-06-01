@@ -43,7 +43,7 @@ uint8_t exp_table[512*2 + 1] = {
   1, 0,
 };
 
-int log_table[256] = {
+unsigned int log_table[256] = {
   512, 255, 25, 1, 50, 2, 26, 198, 75, 199, 27, 104,
   51, 238, 223, 3, 100, 4, 224, 14, 52, 141, 129, 239, 76, 113, 8,
   200, 248, 105, 28, 193, 125, 194, 29, 181, 249, 185, 39, 106, 77,
@@ -80,6 +80,14 @@ extern uint8_t gf_div(uint8_t dividend, uint8_t divisor) {
   return exp_table[log_table[dividend] + 255 - log_table[divisor]];
 }
 
-extern uint8_t gf_log(uint8_t v) {
+extern unsigned int gf_log(uint8_t v) {
   return log_table[v];
+}
+
+extern uint8_t gf_alog(unsigned int v) {
+  return exp_table[v];
+}
+
+extern inline uint8_t gf_log_mul(unsigned int lhs, uint8_t rhs) {
+  return exp_table[lhs + log_table[rhs]];
 }

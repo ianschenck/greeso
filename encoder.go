@@ -51,21 +51,23 @@ func NewRSCodec(n, k int) matrixCodec {
 	m := matrixCodec{}
 	encode := NewMatrix(n, k)
 	for i := 0; i < n; i++ {
-		term := byte(1)
+		term := uint(1)
 		for j := 0; j < k; j++ {
 			encode[i][j] = term
-			term = mul(term, byte(i))
+			term = uint(mul(byte(term), byte(i)))
 		}
 	}
 	encode = encode.Transpose()
 	encode = encode.LowerGaussianElim(nil)
 	encode, _ = encode.UpperInverse(nil)
 	encode = encode.Transpose()
+	// encode = encode.Logify()
 	m.encode = encode
 	return m
 }
 
 func (m *matrixCodec) Encode(message []byte, code []byte) []byte {
+	// m.encode.LogMul(message, code)
 	m.encode.Mul(message, code)
 	return code
 }
@@ -75,10 +77,14 @@ func (m *matrixCodec) PrepareDecoder(chunks []byte) {
 	for i, r := range chunks {
 		decode[i] = m.encode[r]
 	}
-	m.decode = decode.Inverse()
+	// decode = decode.AntiLogify()
+	decode = decode.Inverse()
+	// decode = decode.Logify()
+	m.decode = decode
 }
 
 func (m *matrixCodec) Decode(code []byte, message []byte) []byte {
+	// m.decode.LogMul(code, message)
 	m.decode.Mul(code, message)
 	return message
 }

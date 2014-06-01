@@ -1,8 +1,6 @@
 package greeso
 
 import (
-	"os"
-	"runtime/pprof"
 	"testing"
 )
 
@@ -28,13 +26,9 @@ func BenchmarkEncoder(b *testing.B) {
 	message := "Hello"
 	code := make([]byte, 8)
 	m := NewRSCodec(8, 5)
-	f, _ := os.Create("encodeblock.prof")
-	b.ResetTimer()
-	pprof.StartCPUProfile(f)
 	for i := 0; i < b.N; i++ {
 		m.Encode([]byte(message), code)
 	}
-	pprof.StopCPUProfile()
 }
 
 func TestCCodec(t *testing.T) {
